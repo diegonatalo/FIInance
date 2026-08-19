@@ -62,9 +62,9 @@ export function PieChartCard({ title, data, theme }: PieChartCardProps) {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number, name: string) => [
-                    formatBRL(value),
-                    name,
+                  formatter={(value, name) => [
+                    formatBRL(value as number),
+                    name as string,
                   ]}
                   contentStyle={{
                     borderRadius: 8,

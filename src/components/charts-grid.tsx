@@ -21,18 +21,18 @@ export function ChartsGrid({ ativos, theme }: ChartsGridProps) {
         theme={theme}
       />
       <PieChartCard
-        title="Papel vs. Tijolo"
+        title="Distribuição por tipo"
         data={distribuicaoPorTipo(ativos)}
         theme={theme}
       />
       <PieChartCard
-        title="Segmentos · Papel"
-        data={distribuicaoSegmentoPapel(ativos)}
+        title="Distribuição por segmento"
+        data={distribuicaoSegmentoTijolo(ativos)}
         theme={theme}
       />
       <PieChartCard
-        title="Segmentos · Tijolo"
-        data={distribuicaoSegmentoTijolo(ativos)}
+        title="Distribuição por indexador"
+        data={distribuicaoSegmentoPapel(ativos)}
         theme={theme}
       />
     </div>

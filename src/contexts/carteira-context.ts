@@ -1,15 +1,12 @@
-import { useOutletContext } from "react-router";
-import type { Fii } from "../models/fii";
+import { createContext, useContext } from "react";
+import type { Carteira } from "../hooks/useCarteira";
 
-export interface CarteiraContext {
-  ativos: Fii[];
-  totalInvestido: number;
-  totalCotas: number;
-  onAdd: (data: Omit<Fii, "id">) => void;
-  onEdit: (fii: Fii) => void;
-  onDelete: (id: string) => void;
-}
+export const CarteiraContext = createContext<Carteira | null>(null);
 
-export function useCarteiraContext() {
-  return useOutletContext<CarteiraContext>();
+export function useCarteiraContext(): Carteira {
+  const ctx = useContext(CarteiraContext);
+  if (!ctx) {
+    throw new Error("useCarteiraContext deve ser usado dentro de CarteiraProvider");
+  }
+  return ctx;
 }

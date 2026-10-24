@@ -1,19 +1,27 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardTitle } from "./ui/card";
-import { cn, formatBRL, formatNumber } from "../lib/format";
+import { Button } from "./ui/button";
+import { Field } from "./ui/field";
+import { Input, Select } from "./ui/input";
+import { cn, formatBRL, formatNumber, formatPctSinal } from "../lib/format";
+import { simularPrecoMedio } from "../lib/preco-medio";
+import { parseDecimal, parseDecimalOuZero } from "../lib/numero";
 import type { Fii } from "../models/fii";
 import {
   ArrowRightIcon,
   CalculatorIcon,
+  PlusMinusIcon,
   TrendDownIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react";
 
 interface PrecoMedioCalcProps {
   ativos: Fii[];
+  /** abre o registro de compra com os valores da simulação */
+  onRegistrar: (ativo: Fii, cotas: number, preco: number) => void;
 }
 
-export function PrecoMedioCalc({ ativos }: PrecoMedioCalcProps) {
+export function PrecoMedioCalc({ ativos, onRegistrar }: PrecoMedioCalcProps) {
   const [ativoId, setAtivoId] = useState<string>("");
   const [cotasAtuaisManuais, setCotasAtuaisManuais] = useState("");
   const [precoAtualManual, setPrecoAtualManual] = useState("");
@@ -24,44 +32,14 @@ export function PrecoMedioCalc({ ativos }: PrecoMedioCalcProps) {
 
   const cotasAtuais = ativoSelecionado
     ? ativoSelecionado.cotas
-    : Number(cotasAtuaisManuais) || 0;
+    : parseDecimalOuZero(cotasAtuaisManuais);
   const precoAtual = ativoSelecionado
     ? ativoSelecionado.precoMedio
-    : Number(precoAtualManual) || 0;
+    : parseDecimalOuZero(precoAtualManual);
 
-  const resultado = useMemo(() => {
-    const qtdNova = Number(novasCotas);
-    const pNovo = Number(precoNovo);
-    if (
-      !Number.isFinite(cotasAtuais) ||
-      cotasAtuais < 0 ||
-      !Number.isFinite(precoAtual) ||
-      precoAtual <= 0 ||
-      !Number.isFinite(qtdNova) ||
-      qtdNova <= 0 ||
-      !Number.isFinite(pNovo) ||
-      pNovo <= 0
-    ) {
-      return null;
-    }
-    const totalAtual = cotasAtuais * precoAtual;
-    const totalNovo = qtdNova * pNovo;
-    const totalCotas = cotasAtuais + qtdNova;
-    const novoPrecoMedio = (totalAtual + totalNovo) / totalCotas;
-    const variacao = novoPrecoMedio - precoAtual;
-    const variacaoPct = precoAtual > 0 ? (variacao / precoAtual) * 100 : 0;
-    return {
-      novoPrecoMedio,
-      totalCotas,
-      aporte: totalNovo,
-      novoTotalInvestido: totalAtual + totalNovo,
-      variacao,
-      variacaoPct,
-    };
-  }, [cotasAtuais, precoAtual, novasCotas, precoNovo]);
-
-  const inputClass =
-    "w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:ring-2 focus:ring-emerald-500 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-600 border-zinc-300 dark:border-zinc-700";
+  const qtdNova = parseDecimal(novasCotas);
+  const pNovo = parseDecimal(precoNovo);
+  const resultado = simularPrecoMedio(cotasAtuais, precoAtual, qtdNova, pNovo);
 
   function handleAtivo(id: string) {
     setAtivoId(id);
@@ -71,8 +49,10 @@ export function PrecoMedioCalc({ ativos }: PrecoMedioCalcProps) {
     }
   }
 
-  // baixou o preço médio = bom (verde), subiu = laranja/vermelho
+  // baixou o preço médio = bom (verde), subiu = laranja
   const baixou = resultado ? resultado.variacao <= 0 : false;
+  const podeRegistrar =
+    !!ativoSelecionado && !!resultado && Number.isInteger(qtdNova);
 
   return (
     <Card>
@@ -84,19 +64,15 @@ export function PrecoMedioCalc({ ativos }: PrecoMedioCalcProps) {
       </div>
       <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
         Simule um novo aporte e veja qual seria o seu novo preço médio. Nada é
-        salvo — é só uma simulação.
+        salvo até você registrar a compra.
       </p>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="grid gap-4">
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Usar ativo da carteira (opcional)
-            </span>
-            <select
+          <Field label="Usar ativo da carteira (opcional)">
+            <Select
               value={ativoId}
               onChange={(e) => handleAtivo(e.target.value)}
-              className={cn(inputClass, "capitalize")}
             >
               <option value="">Informar posição manualmente</option>
               {ativos.map((a) => (
@@ -105,79 +81,53 @@ export function PrecoMedioCalc({ ativos }: PrecoMedioCalcProps) {
                   {formatBRL(a.precoMedio)}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Cotas atuais
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="1"
+            <Field label="Cotas atuais">
+              <Input
+                inputMode="numeric"
                 disabled={!!ativoSelecionado}
                 value={
                   ativoSelecionado ? ativoSelecionado.cotas : cotasAtuaisManuais
                 }
                 onChange={(e) => setCotasAtuaisManuais(e.target.value)}
                 placeholder="0"
-                className={cn(inputClass, ativoSelecionado && "opacity-60")}
               />
-            </label>
-
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Preço médio atual (R$)
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+            </Field>
+            <Field label="Preço médio atual (R$)">
+              <Input
+                inputMode="decimal"
                 disabled={!!ativoSelecionado}
                 value={
                   ativoSelecionado
-                    ? ativoSelecionado.precoMedio
+                    ? String(ativoSelecionado.precoMedio.toFixed(2)).replace(".", ",")
                     : precoAtualManual
                 }
                 onChange={(e) => setPrecoAtualManual(e.target.value)}
                 placeholder="0,00"
-                className={cn(inputClass, ativoSelecionado && "opacity-60")}
               />
-            </label>
+            </Field>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Novas cotas compradas
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="1"
+            <Field label="Novas cotas compradas">
+              <Input
+                inputMode="numeric"
                 value={novasCotas}
                 onChange={(e) => setNovasCotas(e.target.value)}
                 placeholder="0"
-                className={inputClass}
               />
-            </label>
-
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Preço pago por cota (R$)
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+            </Field>
+            <Field label="Preço pago por cota (R$)">
+              <Input
+                inputMode="decimal"
                 value={precoNovo}
                 onChange={(e) => setPrecoNovo(e.target.value)}
                 placeholder="0,00"
-                className={inputClass}
               />
-            </label>
+            </Field>
           </div>
         </div>
 
@@ -234,8 +184,7 @@ export function PrecoMedioCalc({ ativos }: PrecoMedioCalcProps) {
                 )}
                 Preço médio {baixou ? "cai" : "sobe"}{" "}
                 {formatBRL(Math.abs(resultado.variacao))} (
-                {resultado.variacaoPct >= 0 ? "+" : ""}
-                {resultado.variacaoPct.toFixed(2)}%)
+                {formatPctSinal(resultado.variacaoPct)})
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -264,6 +213,15 @@ export function PrecoMedioCalc({ ativos }: PrecoMedioCalcProps) {
                   </p>
                 </div>
               </div>
+
+              {podeRegistrar && (
+                <Button
+                  variant="outline"
+                  onClick={() => onRegistrar(ativoSelecionado, qtdNova, pNovo)}
+                >
+                  <PlusMinusIcon size={16} /> Registrar esta compra
+                </Button>
+              )}
             </div>
           )}
         </div>

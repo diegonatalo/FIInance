@@ -1,54 +1,59 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardTitle } from "./ui/card";
+import { Field } from "./ui/field";
+import { Input, Select } from "./ui/input";
 import { cn, formatBRL, formatNumber } from "../lib/format";
-import type { Fii } from "../models/fii";
+import { calcularMagicNumber } from "../lib/magic-number";
+import { parseDecimal, parseDecimalOuZero } from "../lib/numero";
+import type { Cotacao, Fii, Provento } from "../models/fii";
 import { SparkleIcon, TargetIcon, TrendUpIcon } from "@phosphor-icons/react";
 
 interface MagicNumberCalcProps {
   ativos: Fii[];
+  proventos: Provento[];
+  cotacoes: Record<string, Cotacao>;
 }
 
-export function MagicNumberCalc({ ativos }: MagicNumberCalcProps) {
+function ultimoProvento(proventos: Provento[], ativoId: string) {
+  return proventos
+    .filter((p) => p.ativoId === ativoId)
+    .toSorted((a, b) => b.data.localeCompare(a.data))[0];
+}
+
+function paraCampo(n: number) {
+  return String(n).replace(".", ",");
+}
+
+export function MagicNumberCalc({
+  ativos,
+  proventos,
+  cotacoes,
+}: MagicNumberCalcProps) {
   const [ativoId, setAtivoId] = useState<string>("");
   const [dividendo, setDividendo] = useState("");
   const [cotacao, setCotacao] = useState("");
   const [cotasManuais, setCotasManuais] = useState("");
 
   const ativoSelecionado = ativos.find((a) => a.id === ativoId) ?? null;
-
-  // cotas atuais: do ativo selecionado ou do campo manual
   const cotasAtuais = ativoSelecionado
     ? ativoSelecionado.cotas
-    : Number(cotasManuais) || 0;
+    : parseDecimalOuZero(cotasManuais);
 
-  const resultado = useMemo(() => {
-    const div = Number(dividendo);
-    const cot = Number(cotacao);
-    if (
-      !Number.isFinite(div) ||
-      div <= 0 ||
-      !Number.isFinite(cot) ||
-      cot <= 0
-    ) {
-      return null;
-    }
-    // magic number = cotação / dividendo por cota (arredondado para cima)
-    const magicNumber = Math.ceil(cot / div);
-    const faltam = Math.max(0, magicNumber - cotasAtuais);
-    const progresso =
-      magicNumber > 0 ? Math.min(100, (cotasAtuais / magicNumber) * 100) : 0;
-    const atingiu = cotasAtuais >= magicNumber;
-    // quanto de aporte ainda falta, ao preço da cotação atual
-    const aporteFaltante = faltam * cot;
-    return { magicNumber, faltam, progresso, atingiu, aporteFaltante };
-  }, [dividendo, cotacao, cotasAtuais]);
+  const resultado = calcularMagicNumber(
+    parseDecimal(dividendo),
+    parseDecimal(cotacao),
+    cotasAtuais,
+  );
 
-  const inputClass =
-    "w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:ring-2 focus:ring-emerald-500 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-600 border-zinc-300 dark:border-zinc-700";
-
+  // Ao escolher um ativo, preenche dividendo (último provento) e cotação (se houver).
   function handleAtivo(id: string) {
     setAtivoId(id);
-    if (id) setCotasManuais("");
+    if (!id) return;
+    setCotasManuais("");
+    const ult = ultimoProvento(proventos, id);
+    if (ult) setDividendo(paraCampo(ult.valorPorCota));
+    const cot = cotacoes[id];
+    if (cot) setCotacao(paraCampo(cot.preco));
   }
 
   return (
@@ -61,19 +66,16 @@ export function MagicNumberCalc({ ativos }: MagicNumberCalcProps) {
       </div>
       <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
         Descubra quantas cotas você precisa para que os dividendos comprem uma
-        nova cota todo mês.
+        nova cota todo mês. Ao escolher um ativo, usamos o último provento e a
+        cotação registrados.
       </p>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="grid gap-4">
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Usar ativo da carteira (opcional)
-            </span>
-            <select
+          <Field label="Usar ativo da carteira (opcional)">
+            <Select
               value={ativoId}
               onChange={(e) => handleAtivo(e.target.value)}
-              className={cn(inputClass, "capitalize")}
             >
               <option value="">Informar cotas manualmente</option>
               {ativos.map((a) => (
@@ -81,56 +83,37 @@ export function MagicNumberCalc({ ativos }: MagicNumberCalcProps) {
                   {a.ticker} — {formatNumber(a.cotas)} cotas
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Dividendo por cota (R$)
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+            <Field label="Dividendo por cota (R$)">
+              <Input
+                inputMode="decimal"
                 value={dividendo}
                 onChange={(e) => setDividendo(e.target.value)}
                 placeholder="0,90"
-                className={inputClass}
               />
-            </label>
-
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Cotação atual (R$)
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+            </Field>
+            <Field label="Cotação atual (R$)">
+              <Input
+                inputMode="decimal"
                 value={cotacao}
                 onChange={(e) => setCotacao(e.target.value)}
                 placeholder="10,30"
-                className={inputClass}
               />
-            </label>
+            </Field>
           </div>
 
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Cotas que você já possui
-            </span>
-            <input
-              type="number"
-              min="0"
-              step="1"
+          <Field label="Cotas que você já possui">
+            <Input
+              inputMode="numeric"
               disabled={!!ativoSelecionado}
               value={ativoSelecionado ? ativoSelecionado.cotas : cotasManuais}
               onChange={(e) => setCotasManuais(e.target.value)}
               placeholder="0"
-              className={cn(inputClass, ativoSelecionado && "opacity-60")}
             />
-          </label>
+          </Field>
         </div>
 
         {/* Resultado */}
@@ -169,9 +152,14 @@ export function MagicNumberCalc({ ativos }: MagicNumberCalcProps) {
                 </div>
               </div>
 
-              {/* Barra de progresso */}
               <div className="grid gap-1.5">
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <div
+                  role="progressbar"
+                  aria-valuenow={Math.round(resultado.progresso)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+                >
                   <div
                     className={cn(
                       "h-full rounded-full transition-all",

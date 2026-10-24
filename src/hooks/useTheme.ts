@@ -1,31 +1,34 @@
 import { useEffect } from "react";
 import { useLocalStorage } from "./useLocalStorage";
+import { CHAVE_TEMA } from "../lib/migracao";
 
 export type Theme = "light" | "dark";
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem("fii:theme");
-  if (stored === "light" || stored === "dark") return stored;
+function sanitizarTema(raw: unknown): Theme | null {
+  return raw === "dark" || raw === "light" ? raw : null;
+}
+
+function temaDoSistema(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useLocalStorage<Theme>(
-    "fii:theme",
-    getInitialTheme(),
+  const [stored, setTheme] = useLocalStorage<Theme | null>(
+    CHAVE_TEMA,
+    null,
+    sanitizarTema,
   );
+  const theme = stored ?? temaDoSistema();
 
+  // O script inline do index.html aplica a classe antes do primeiro paint;
+  // aqui só mantemos sincronizado quando o usuário alterna.
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    root.classList.toggle("bg-zinc-950", theme === "dark");
-    root.classList.toggle("bg-zinc-50", theme === "light");
+    document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  const toggle = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  const toggle = () => setTheme(theme === "dark" ? "light" : "dark");
 
   return { theme, toggle };
 }

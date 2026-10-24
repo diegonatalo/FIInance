@@ -1,77 +1,38 @@
-# React + TypeScript + Vite
+# FIInance
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Acompanhe sua carteira de Fundos Imobiliários (FIIs): posição e preço médio calculados a partir das suas operações, cotações, proventos, meta de alocação e calculadoras de Magic Number e Preço Médio.
 
-Currently, two official plugins are available:
+Os dados ficam apenas no `localStorage` do navegador. Use **Carteira → Backup dos dados** para exportar/importar um JSON (e um CSV das operações).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Rodando
 
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm install
+pnpm dev      # servidor de desenvolvimento
+pnpm build    # checagem de tipos + build de produção
+pnpm lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Estrutura
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `src/models` — tipos do domínio (`Ativo`, `Transacao`, `Provento`, `Dados`).
+- `src/lib` — lógica pura, sem React: posição/preço médio (`posicao`), resumo, proventos, metas, calculadoras, validação/migração dos dados.
+- `src/hooks` — `useCarteira` (estado e ações), `useLocalStorage` (persistência sincronizada entre componentes e abas), `useTheme`.
+- `src/contexts` — `CarteiraProvider` e `ToastProvider`.
+- `src/components`, `src/pages` — interface.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Modelo de dados
 
-```
+O app guarda **operações** (compras e vendas), não posições. Cotas e preço médio de cada ativo são derivados delas: compras recalculam o preço médio; vendas reduzem as cotas e mantêm o preço médio. A carteira no formato antigo (`fiinance:carteira`) é convertida automaticamente na primeira abertura, com uma compra inicial por ativo datada de hoje.
+
+## Cotações
+
+Podem ser digitadas manualmente ou buscadas na [brapi](https://brapi.dev). FIIs exigem um token gratuito, informado em **Carteira → Cotações** e guardado só no navegador (fora do backup).
+
+## Deploy
+
+O app usa `BrowserRouter`, então o host precisa redirecionar qualquer rota para o `index.html` (SPA fallback); sem isso, atualizar a página em `/carteira` retorna 404.
+
+## SEO (robots, sitemap, Open Graph)
+
+`robots.txt` e `sitemap.xml` são gerados no `pnpm build` a partir de `VITE_SITE_URL` (veja `.env.example`), que também torna absolutas as URLs de `og:image`/`twitter:image`. Defina-a no ambiente de build do seu host (ou em `.env.production`). Sem ela, o `robots.txt` sai sem a linha `Sitemap` e o `sitemap.xml` não é gerado. Ao criar uma rota nova, adicione-a em `ROTAS` no `vite.config.ts`.

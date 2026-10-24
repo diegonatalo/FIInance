@@ -12,6 +12,14 @@ body,
   height: 100%;
 }
 
+html {
+  background-color: #fafafa; /* zinc-50 */
+}
+
+html.dark {
+  background-color: #09090b; /* zinc-950 */
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

@@ -12,6 +12,7 @@ function valorAtivo(a: Fii) {
 function agrupar(ativos: Fii[], chave: (a: Fii) => string): Fatia[] {
   const mapa = new Map<string, number>();
   for (const a of ativos) {
+    if (a.cotas <= 0) continue;
     const k = chave(a);
     mapa.set(k, (mapa.get(k) ?? 0) + valorAtivo(a));
   }

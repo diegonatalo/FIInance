@@ -1,55 +1,17 @@
-import { useState } from "react";
 import { NavLink, Outlet } from "react-router";
 import { useTheme } from "./hooks/useTheme";
-import { useCarteira } from "./hooks/useCarteira";
 import { ThemeToggle } from "./components/theme-toggle";
-import { FiiForm } from "./components/fii-form";
-import { Modal } from "./components/ui/modal";
-import { Toast } from "./components/toast";
-import type { Fii } from "./models/fii";
-import type { CarteiraContext } from "./contexts/carteira-context";
 import { BuildingsIcon } from "@phosphor-icons/react";
 
 const navItems = [
   { to: "/", label: "Painel", end: true },
   { to: "/carteira", label: "Carteira", end: false },
+  { to: "/proventos", label: "Proventos", end: false },
   { to: "/calculadoras", label: "Calculadoras", end: false },
 ];
 
 export function Layout() {
   const { theme, toggle } = useTheme();
-  const { ativos, adicionar, atualizar, remover, totalInvestido, totalCotas } =
-    useCarteira();
-
-  const [editing, setEditing] = useState<Fii | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
-  function handleAdd(data: Omit<Fii, "id">) {
-    adicionar(data);
-    setToast(`${data.ticker} adicionado à carteira`);
-  }
-
-  function handleUpdate(data: Omit<Fii, "id">) {
-    if (!editing) return;
-    atualizar(editing.id, data);
-    setToast(`${data.ticker} atualizado`);
-    setEditing(null);
-  }
-
-  function handleDelete(id: string) {
-    const alvo = ativos.find((a) => a.id === id);
-    remover(id);
-    setToast(alvo ? `${alvo.ticker} removido` : "Ativo removido");
-  }
-
-  const context: CarteiraContext = {
-    ativos,
-    totalInvestido,
-    totalCotas,
-    onAdd: handleAdd,
-    onEdit: setEditing,
-    onDelete: handleDelete,
-  };
 
   return (
     <div className="min-h-full bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
@@ -70,7 +32,7 @@ export function Layout() {
           </div>
           <ThemeToggle theme={theme} onToggle={toggle} />
         </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 px-4">
+        <nav className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -91,22 +53,8 @@ export function Layout() {
       </header>
 
       <main className="mx-auto grid max-w-5xl grid-cols-1 gap-6 px-4 py-6 *:min-w-0">
-        <Outlet context={context} />
+        <Outlet />
       </main>
-
-      <Modal
-        open={!!editing}
-        title="Editar ativo"
-        onClose={() => setEditing(null)}
-      >
-        <FiiForm
-          initial={editing}
-          onSubmit={handleUpdate}
-          onCancel={() => setEditing(null)}
-        />
-      </Modal>
-
-      <Toast message={toast} onDone={() => setToast(null)} />
     </div>
   );
 }

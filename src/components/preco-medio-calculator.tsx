@@ -68,7 +68,7 @@ export function PrecoMedioCalc({ ativos, onRegistrar }: PrecoMedioCalcProps) {
       </p>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="grid gap-4">
+        <div className="grid content-start gap-4">
           <Field label="Usar ativo da carteira (opcional)">
             <Select
               value={ativoId}
